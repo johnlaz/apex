@@ -1909,7 +1909,13 @@ function resetForm(){
   clearVin();setCondition(3);window.scrollTo({top:0,behavior:'smooth'});
 }
 
-if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js', {scope: './'})
+      .then(reg => console.log('SW registered, scope:', reg.scope))
+      .catch(err => console.warn('SW registration failed:', err));
+  });
+};
 </script>
 </body>
 </html>
