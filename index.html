@@ -972,7 +972,21 @@ footer span{color:var(--ac);transition:color .5s}
       <span style="cursor:pointer;color:var(--red)" onclick="clearAllKeys()">Clear key</span>
     </div>
 
-    <div id="settingsCloseWrap" style="display:none;margin-top:10px">
+    <!-- DATA BACKUP / RESTORE -->
+    <div style="height:1px;background:var(--border);margin:20px 0"></div>
+    <div class="api-title">DATA BACKUP & RESTORE</div>
+    <div class="api-desc">Export all your data (Garage, saved searches, settings) to a file you can keep as a backup or transfer to another device. Your Groq key is included in the export.</div>
+
+    <button class="api-save-btn" onclick="exportAllData()" style="background:rgba(61,220,104,.15);border:1px solid rgba(61,220,104,.35);color:var(--green);margin-bottom:10px">📤 EXPORT ALL DATA</button>
+
+    <div class="api-desc" style="margin-top:4px">Restore from a previously exported backup file. This will <strong>replace</strong> all current data.</div>
+    <div style="display:flex;gap:10px;margin-top:8px">
+      <button class="api-save-btn" onclick="document.getElementById('importFileInput').click()" style="background:rgba(78,142,203,.15);border:1px solid rgba(78,142,203,.35);color:var(--blue);flex:1">📥 IMPORT FROM FILE</button>
+      <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="importAllData(this)">
+    </div>
+    <div id="importStatus" style="font-family:var(--fm);font-size:11px;margin-top:8px;padding:8px 12px;border-radius:6px;display:none"></div>
+
+    <div id="settingsCloseWrap" style="display:none;margin-top:18px">
       <button onclick="closeApiModal()" style="width:100%;background:none;border:1px solid var(--border);border-radius:9px;color:var(--muted);cursor:pointer;font-family:var(--fb);font-size:14px;padding:10px;transition:all .2s" onmouseover="this.style.borderColor='var(--ac)';this.style.color='var(--ac)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">Close</button>
     </div>
   </div>
@@ -1060,6 +1074,78 @@ function clearAllKeys(){
   document.getElementById('groqKeyInput').value='';
   document.getElementById('groqStatus').className='api-status';
   updateGearDot();
+}
+
+// ══════════════════════════════════════════════
+// EXPORT / IMPORT ALL DATA
+// ══════════════════════════════════════════════
+function exportAllData(){
+  const payload = {
+    version: 2,
+    exported: new Date().toISOString(),
+    groq_key: getGroqKey() || '',
+    theme: localStorage.getItem('ca_theme') || 'red',
+    saved_searches: JSON.parse(localStorage.getItem('ca_saved') || '[]'),
+    inventory: JSON.parse(localStorage.getItem('ca_inventory') || '[]'),
+    maintenance: JSON.parse(localStorage.getItem('ca_maintenance') || '{}'),
+    forms: localStorage.getItem('ca_forms') ? JSON.parse(localStorage.getItem('ca_forms')) : null
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'APEX_backup_' + new Date().toISOString().split('T')[0] + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importAllData(input){
+  const file = input.files[0];
+  if(!file) return;
+  const status = document.getElementById('importStatus');
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try {
+      const data = JSON.parse(e.target.result);
+      if(!data.version || !data.exported){ throw new Error('Invalid backup file.'); }
+
+      if(data.groq_key)       localStorage.setItem('apex_groq_key', data.groq_key);
+      if(data.theme)          localStorage.setItem('ca_theme', data.theme);
+      if(data.saved_searches) localStorage.setItem('ca_saved', JSON.stringify(data.saved_searches));
+      if(data.inventory)      localStorage.setItem('ca_inventory', JSON.stringify(data.inventory));
+      if(data.maintenance)    localStorage.setItem('ca_maintenance', JSON.stringify(data.maintenance));
+      if(data.forms)          localStorage.setItem('ca_forms', JSON.stringify(data.forms));
+
+      // Reload live state
+      setTheme(data.theme || 'red');
+      updateGearDot();
+      loadSavedSearches();
+      inventory   = JSON.parse(localStorage.getItem('ca_inventory') || '[]');
+      maintenance = JSON.parse(localStorage.getItem('ca_maintenance') || '{}');
+      renderInventory();
+      loadForms();
+
+      // Update key field
+      if(data.groq_key) document.getElementById('groqKeyInput').value = data.groq_key;
+
+      status.style.display    = 'block';
+      status.style.background = 'rgba(61,220,104,.1)';
+      status.style.border     = '1px solid rgba(61,220,104,.3)';
+      status.style.color      = 'var(--green)';
+      status.textContent = '✓ Import successful — ' +
+        (data.inventory      ? data.inventory.length      : 0) + ' garage vehicles, ' +
+        (data.saved_searches ? data.saved_searches.length : 0) + ' saved searches restored.';
+
+    } catch(err) {
+      status.style.display    = 'block';
+      status.style.background = 'rgba(232,64,64,.1)';
+      status.style.border     = '1px solid rgba(232,64,64,.3)';
+      status.style.color      = 'var(--red)';
+      status.textContent      = '✕ Import failed: ' + err.message;
+    }
+    input.value = ''; // allow re-selecting same file
+  };
+  reader.readAsText(file);
 }
 
 // ══════════════════════════════════════════════
