@@ -1,74 +1,76 @@
-// APEX Service Worker — fixed for https://johnlaz.github.io/apex/
-const CACHE = 'apex-v4';
-const BASE  = '/apex/';
-
-const APP_SHELL = [
-  BASE,
-  BASE + 'index.html',
-  BASE + 'manifest.json',
-  BASE + 'favicon.ico',
-  BASE + 'icon-32.png',
-  BASE + 'icon-64.png',
-  BASE + 'icon-192.png',
-  BASE + 'icon-256.png',
+// APEX — Service Worker
+const CACHE_NAME = 'apex-v5';
+const CACHE_URLS = [
+  './',
+  './index.html',
+  './manifest.json',
+  './favicon.ico',
+  './icon-512.png',
+  './icon-192.png',
+  './icon-256.png',
+  './icon-64.png',
+  './icon-32.png',
+  'https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap',
+  'https://cdnjs.cloudflare.com/ajax/libs/zxing-js/0.19.1/zxing.min.js',
 ];
 
-const BYPASS = [
-  'api.groq.com',
-  'nhtsa.gov',
-  'clearbit.com',
-  'fonts.googleapis.com',
-  'fonts.gstatic.com',
-  'cdnjs.cloudflare.com',
-];
-
+// ── INSTALL ──
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE).then(cache =>
-      Promise.allSettled(APP_SHELL.map(url => cache.add(url).catch(() => {})))
-    )
+    caches.open(CACHE_NAME).then(cache =>
+      Promise.allSettled(
+        CACHE_URLS.map(url =>
+          cache.add(url).catch(err => console.warn('SW: could not cache', url, err))
+        )
+      )
+    ).then(() => self.skipWaiting())
   );
-  self.skipWaiting();
 });
 
+// ── ACTIVATE ──
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-    )
+      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+    ).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
+// ── FETCH ──
 self.addEventListener('fetch', event => {
-  const url = event.request.url;
-  if (BYPASS.some(s => url.includes(s))) return;
+  const url = new URL(event.request.url);
 
-  // All navigation requests → serve index.html
-  if (event.request.mode === 'navigate') {
+  // Never intercept API calls
+  if (url.hostname === 'api.groq.com' ||
+      url.hostname === 'vpic.nhtsa.dot.gov' ||
+      url.hostname === 'logo.clearbit.com') {
+    return;
+  }
+
+  // Network-first for Google Fonts CSS
+  if (url.hostname === 'fonts.googleapis.com') {
     event.respondWith(
-      caches.open(CACHE).then(cache =>
-        cache.match(BASE + 'index.html').then(cached => {
-          if (cached) return cached;
-          return fetch(BASE + 'index.html').then(res => {
-            cache.put(BASE + 'index.html', res.clone());
-            return res;
-          });
-        })
-      )
+      fetch(event.request).catch(() => caches.match(event.request))
     );
     return;
   }
 
+  // Cache-first for everything else
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;
-      return fetch(event.request).then(res => {
-        if (res && res.status === 200) {
-          caches.open(CACHE).then(c => c.put(event.request, res.clone()));
+      return fetch(event.request).then(response => {
+        if (!response || response.status !== 200 || response.type === 'error') {
+          return response;
         }
-        return res;
-      }).catch(() => caches.match(BASE + 'index.html'));
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+        return response;
+      }).catch(() => {
+        if (event.request.mode === 'navigate') {
+          return caches.match('./index.html');
+        }
+      });
     })
   );
 });
