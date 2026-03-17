@@ -1,5 +1,5 @@
 {
-  "name": "APEX — Scan | Analyze | Track",
+  "name": "APEX v2.1 \u2014 Scan | Analyze | Track",
   "short_name": "APEX",
   "description": "Professional vehicle valuation, dealer forms, and inventory management",
   "start_url": "./",
@@ -38,6 +38,11 @@
       "type": "image/png"
     }
   ],
-  "categories": ["utilities", "business", "finance"],
-  "lang": "en-US"
+  "categories": [
+    "utilities",
+    "business",
+    "finance"
+  ],
+  "lang": "en-US",
+  "version": "2.1"
 }
