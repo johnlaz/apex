@@ -1,5 +1,5 @@
 // APEX — Service Worker
-const CACHE_NAME = 'apex-v5';
+const CACHE_NAME = 'apex-v6';
 const CACHE_URLS = [
   './',
   './index.html',
