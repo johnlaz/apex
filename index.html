@@ -1321,10 +1321,23 @@ async function callClaude(body){
   // Detect if this is a vision request (messages contain image content arrays)
   const hasVision=body.messages?.some(m=>Array.isArray(m.content) && m.content.some(c=>c.type==='image'));
 
+  // For valuation calls (non-vision), inject a system message and force JSON mode
+  const isValuation = !hasVision && body.messages?.some(m=>
+    typeof m.content === 'string' && m.content.includes('OUTPUT STRUCTURE')
+  );
+
   const groqBody={
     model: hasVision ? 'meta-llama/llama-4-scout-17b-16e-instruct' : 'llama-3.3-70b-versatile',
     max_tokens: body.max_tokens || 1000,
-    messages: body.messages.map(m=>{
+    temperature: isValuation ? 0 : 0.2,
+    ...(isValuation ? { response_format: { type: 'json_object' } } : {}),
+    messages: [
+      // System message keeps the model focused — only injected for valuation calls
+      ...(isValuation ? [{
+        role: 'system',
+        content: 'You are a vehicle valuation API. You output ONLY valid JSON. Never use markdown. Never add explanation or commentary. Never wrap output in code fences. Output must be parseable by JSON.parse() with no pre-processing.'
+      }] : []),
+      ...body.messages.map(m=>{
       // Convert Anthropic-style image content to Groq/OpenAI format
       if(Array.isArray(m.content)){
         return{
@@ -1338,6 +1351,7 @@ async function callClaude(body){
       }
       return m;
     })
+    ]
   };
 
   const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
@@ -2096,93 +2110,105 @@ async function analyzeVehicle(){
   const ageDepr = '$' + (age * 800).toLocaleString();
   const mileageRange = Math.round(mi/1000)*1000 + 'k-' + (Math.round(mi/1000)+40) + 'k mi';
 
-  const schema = {
-    vehicle_title: 'YEAR MAKE MODEL',
-    condition_label: 'e.g. Good — Well-Maintained Daily Driver',
-    overall_score: 74,
-    overall_score_label: 'Above Average',
+  // ── AI fills ONLY this lean schema (no special chars, no pre-computed values) ──
+  const aiSchema = {
+    vehicle_title: year + ' ' + make + ' ' + model + (trim ? ' ' + trim : ''),
+    condition_label: condLabel + ' — describe briefly',
+    overall_score: 0,
+    overall_score_label: 'rating label',
     prices: {
-      trade_in:     { value: 0, range_low: 0, range_high: 0, description: 'string' },
-      private_party:{ value: 0, range_low: 0, range_high: 0, description: 'string' },
-      dealer_retail:{ value: 0, range_low: 0, range_high: 0, description: 'string' }
+      trade_in:     { value: 0, range_low: 0, range_high: 0, description: 'one sentence' },
+      private_party:{ value: 0, range_low: 0, range_high: 0, description: 'one sentence' },
+      dealer_retail:{ value: 0, range_low: 0, range_high: 0, description: 'one sentence' }
     },
-    quick_stats: { dealer_margin: 'string', best_sale_channel: 'string', avg_days_on_market: 'string', price_trend_30d: 'string' },
+    quick_stats: {
+      dealer_margin: 'dollar amount',
+      best_sale_channel: 'channel name',
+      avg_days_on_market: 'number plus days',
+      price_trend_30d: '+X% or -X% description'
+    },
     source_breakdown: [
-      { source: 'Manheim/MMR',      estimated_value: 'string', note: 'string' },
-      { source: 'KBB',              estimated_value: 'string', note: 'string' },
-      { source: 'Edmunds TMV',      estimated_value: 'string', note: 'string' },
-      { source: 'J.D. Power/NADA', estimated_value: 'string', note: 'string' }
+      { source: 'Manheim/MMR',      estimated_value: '$0,000', note: 'one sentence' },
+      { source: 'KBB',              estimated_value: '$0,000', note: 'one sentence' },
+      { source: 'Edmunds TMV',      estimated_value: '$0,000', note: 'one sentence' },
+      { source: 'J.D. Power/NADA',  estimated_value: '$0,000', note: 'one sentence' }
     ],
-    source_reading_notes: '2-3 sentences on using these numbers together',
-    factors: [
-      { label: 'Mileage vs Baseline', impact: miImpact,  direction: miImpactDir, pct: miPct,  color: miColor, note: miNote },
-      { label: 'Condition Adjustment',impact: '+$0',     direction: 'neutral',   pct: 50,     color: 'gold',  note: 'Baseline good condition applied' },
-      { label: 'Age Depreciation',    impact: '-'+ageDepr,direction:'negative',  pct: 60,     color: 'red',   note: 'Depreciation slows after year 5' },
-      { label: 'Market Demand 2026',  impact: '+$0',     direction: 'neutral',   pct: 55,     color: 'blue',  note: 'FILL' }
-    ],
+    source_reading_notes: 'two sentences max',
     market_signals: [
-      { label: 'Days on Market',   value: 'FILL', color: '#3ddc68' },
-      { label: 'Demand Trend',     value: 'FILL', color: '#c9a84c' },
-      { label: 'Best Time to Sell',value: 'FILL', color: '#3ddc68' },
-      { label: 'Inventory Level',  value: 'FILL', color: '#c9a84c' },
-      { label: 'Price vs 1yr Ago', value: 'FILL', color: '#e84040' },
-      { label: 'Negotiation Room', value: 'FILL', color: '#c9a84c' }
+      { label: 'Days on Market',    value: 'X days' },
+      { label: 'Demand Trend',      value: 'Rising or Falling' },
+      { label: 'Best Time to Sell', value: 'season or month' },
+      { label: 'Inventory Level',   value: 'Low or High' },
+      { label: 'Price vs 1yr Ago',  value: '+X% or -X%' },
+      { label: 'Negotiation Room',  value: 'dollar amount' }
     ],
-    analysis: '3-4 sentences about this specific vehicle in 2026',
-    reliability_score: 75,
-    reliability_label: 'Good',
-    reliability_summary: '2-3 sentences on reliability history',
+    analysis: 'three sentences about this vehicle in 2026',
+    reliability_score: 0,
+    reliability_label: 'Good or Poor etc',
+    reliability_summary: 'two sentences',
     common_issues: [
-      { title: 'string', severity: 'high|medium|low', est_repair_cost: 'string', typical_mileage: 'string', description: 'string', buyer_tip: 'string' },
-      { title: 'string', severity: 'low',             est_repair_cost: 'string', typical_mileage: 'string', description: 'string', buyer_tip: 'string' }
+      { title: 'Issue name', severity: 'high', est_repair_cost: '$X-$Y', typical_mileage: 'around X miles', description: 'one sentence', buyer_tip: 'one sentence' },
+      { title: 'Issue name', severity: 'medium', est_repair_cost: '$X-$Y', typical_mileage: 'around X miles', description: 'one sentence', buyer_tip: 'one sentence' },
+      { title: 'Issue name', severity: 'low', est_repair_cost: '$X-$Y', typical_mileage: 'around X miles', description: 'one sentence', buyer_tip: 'one sentence' }
     ],
-    recall_tsb_summary: 'string',
+    recall_tsb_summary: 'one or two sentences',
     saturation: {
-      level: 'Low|Moderate|High', score: 50,
-      active_listings_est: 'string', yoy_inventory_change: 'string',
-      avg_price_drop_per_week: 'string', typical_negotiation_room: 'string',
-      analysis: 'string', timing_advice: 'string',
+      level: 'Low',
+      score: 0,
+      active_listings_est: 'approx X listings',
+      yoy_inventory_change: '+X% or -X%',
+      avg_price_drop_per_week: '$X per week',
+      typical_negotiation_room: '$X-$Y',
+      analysis: 'two sentences',
+      timing_advice: 'two sentences',
       regional: [
-        { region: 'Northeast',  level: 'string', pct: 52, color: '#c9a84c' },
-        { region: 'Southeast',  level: 'string', pct: 45, color: '#c9a84c' },
-        { region: 'Midwest',    level: 'string', pct: 35, color: '#3ddc68' },
-        { region: 'Southwest',  level: 'string', pct: 62, color: '#e84040' },
-        { region: 'West Coast', level: 'string', pct: 65, color: '#e84040' }
+        { region: 'Northeast',  level: 'Moderate', pct: 50 },
+        { region: 'Southeast',  level: 'Moderate', pct: 50 },
+        { region: 'Midwest',    level: 'Low',      pct: 35 },
+        { region: 'Southwest',  level: 'High',     pct: 60 },
+        { region: 'West Coast', level: 'High',     pct: 65 }
       ]
     },
-    negotiation_tips: ['tip 1', 'tip 2', 'tip 3', 'tip 4'],
-    buyer_checklist:  ['item 1', 'item 2', 'item 3', 'item 4'],
-    seller_checklist: ['item 1', 'item 2', 'item 3', 'item 4']
+    negotiation_tips: ['tip one', 'tip two', 'tip three', 'tip four'],
+    buyer_checklist:  ['item one', 'item two', 'item three', 'item four'],
+    seller_checklist: ['item one', 'item two', 'item three', 'item four']
   };
 
-  const prompt =
-    'You are a professional used-car appraiser. Produce a realistic, accurate valuation for the March 2026 US market.\n\n'
-  + 'VEHICLE: ' + year + ' ' + make + ' ' + model + (trim ? ' ' + trim : '') + '\n'
-  + 'Mileage: ' + mi.toLocaleString() + ' miles (' + miNote + ')\n'
-  + 'Age: ' + age + ' years | Baseline: ' + baseline.toLocaleString() + ' mi | Mileage delta: ' + miDir + ' by ' + miDiffAbs + ' mi\n'
-  + 'Condition: ' + condLabel + '\n'
-  + 'VIN: ' + (vin || 'Not provided') + '\n'
-  + 'Notes: ' + (notes || 'None') + '\n\n'
-  + 'MILEAGE ASSESSMENT: ' + miNote + '\n'
-  + 'Mileage delta from ' + age + '-year baseline (' + baseline.toLocaleString() + ' mi): ' + miDir + ' by ' + miDiffAbs + ' mi (' + miImpact + ')\n\n'
-  + 'PRICING RULES — FOLLOW EXACTLY:\n'
-  + '1. Price from REAL 2026 US transaction data for this exact year/make/model/trim. Do NOT use generic averages.\n'
-  + '2. ANCHOR TO MSRP FIRST for vehicles under 3 years old with low mileage. A 2025 GMC Hummer EV Pickup base MSRP is $79,995. A 2025 GMC Hummer EV SUV base MSRP is $82,995. Recent luxury/specialty vehicles retain high value — price realistically near MSRP for low-mileage examples.\n'
-  + '3. Mileage is the single biggest price driver for older/higher-mileage vehicles. A vehicle with ' + mi.toLocaleString() + ' miles is in the ' + miNote.split(' —')[0] + ' tier — price accordingly.\n'
-  + '4. For vehicles over 100k miles: apply heavy discount. Over 150k: severe discount. Over 200k: near end-of-lifecycle — price $2,000-$8,000 range unless exotic/rare.\n'
-  + '5. For vehicles under 30k miles on a recent model year: value stays close to MSRP/retail. Do NOT underprice luxury/EV/specialty vehicles.\n'
-  + '6. Age matters but mileage matters MORE for high-mile cars. A 15-year-old car at 210k miles is NOT worth $15,000+.\n'
-  + '7. Condition multipliers: Excellent +8%, VeryGood +3%, Good 0%, Fair -10%, Poor -20%\n'
-  + '8. Trade-in = 80-85% of private party. Dealer retail = private party + $1,500-$3,000 (more for luxury/EV).\n'
-  + '9. Source spread: MMR 5-8% below KBB; Edmunds TMV 2-4% below KBB; NADA close to KBB. Each source must cite a realistic dollar value — not a placeholder.\n\n'
-  + 'RESPOND WITH ONLY A VALID JSON OBJECT. No markdown, no code fences, no commentary.\n'
-  + 'All string values must use only safe characters — no double quotes inside strings, no backslashes.\n'
-  + 'Use this exact JSON structure (replace every "string" and "FILL" placeholder with real data):\n'
-  + JSON.stringify(schema)
+  // ── JS-computed factors (never sent to AI — merged in after parse) ──────────
+  const computedFactors = [
+    { label: 'Mileage',    impact: miImpact,    direction: miImpactDir, pct: miPct,  color: miColor, note: miNote },
+    { label: 'Condition',  impact: '+$0',        direction: 'neutral',   pct: 50,     color: 'gold',  note: condLabel + ' — baseline applied' },
+    { label: 'Depreciation', impact: '-'+ageDepr, direction: 'negative', pct: Math.min(90, age*4), color: 'red', note: age + ' years old — depreciation curve' },
+    { label: 'Market 2026', impact: '+$0',        direction: 'neutral',  pct: 55,     color: 'blue',  note: 'See market signals below' }
+  ];
+
+  const prompt = [
+    'You are a professional US used-car appraiser. Return ONLY a single valid JSON object. No markdown. No prose. No explanation. No code fences. Nothing before or after the JSON.',
+    '',
+    'VEHICLE: ' + year + ' ' + make + ' ' + model + (trim ? ' ' + trim : ''),
+    'Mileage: ' + mi.toLocaleString() + ' miles  |  Condition: ' + condLabel + '  |  Age: ' + age + ' years',
+    'VIN: ' + (vin || 'Not provided') + '  |  Notes: ' + (notes || 'None'),
+    '',
+    'MILEAGE TIER: ' + miNote,
+    '',
+    'PRICING RULES:',
+    '1. Use real 2026 US market data for this exact vehicle.',
+    '2. Vehicles under 3 years old with under 30k miles: anchor near MSRP. 2025 GMC Hummer EV Pickup MSRP ~$80k. Do not underprice EV or luxury.',
+    '3. Over 100k miles: heavy discount. Over 150k: severe. Over 200k: $2k-$8k range unless exotic.',
+    '4. Condition: Excellent +8%, VeryGood +3%, Good 0%, Fair -10%, Poor -20%.',
+    '5. Trade-in = 80-85% of private party. Dealer retail = private party + $1,500-$3,000.',
+    '6. Source spread: MMR is 5-8% below KBB; Edmunds 2-4% below KBB; NADA near KBB.',
+    '7. All price fields must be real integers (no quotes, no dollar signs in numeric fields).',
+    '8. All string values: plain ASCII only. No double-quotes inside strings. No backslashes.',
+    '9. severity field must be exactly one of: high, medium, low',
+    '',
+    'OUTPUT STRUCTURE (fill every 0 and placeholder with real data):',
+    JSON.stringify(aiSchema, null, 0)
+  ].join('\n');
 
   try{
     const[d,logoUrl]=await Promise.all([
-      callClaude({max_tokens:2600,messages:[{role:'user',content:prompt}]}),
+      callClaude({max_tokens:4000,messages:[{role:'user',content:prompt}]}),
       fetchLogo(make)
     ]);
     const raw = d.content?.[0]?.text || '';
@@ -2197,6 +2223,19 @@ async function analyzeVehicle(){
       throw new Error('JSON parse failed near: <code style="font-size:10px;word-break:break-all">...' + snippet + '...</code><br><small>' + parseErr.message + '</small>');
     }
     if(!report) throw new Error('AI returned unparseable JSON — check console: window._lastRawAI');
+    // Merge JS-computed factors and assign regional colors (never sent to AI)
+    report.factors = computedFactors;
+    const regionColors = { Low: '#3ddc68', Moderate: '#c9a84c', High: '#e84040' };
+    if(report.saturation && report.saturation.regional) {
+      report.saturation.regional.forEach(r => {
+        r.color = regionColors[r.level] || '#c9a84c';
+      });
+    }
+    // Assign market_signal colors based on position
+    const sigColors = ['#3ddc68','#c9a84c','#3ddc68','#c9a84c','#e84040','#c9a84c'];
+    if(report.market_signals) {
+      report.market_signals.forEach((s,i) => { s.color = s.color || sigColors[i] || '#c9a84c'; });
+    }
     curReport=report;curInput={year,make,model,trim,mileage,notes,vin,condition:selCond,conditionLabel:condLbls[selCond]};
     loading.classList.remove('active');renderReport(report,curInput,undefined,logoUrl);
   }catch(err){
@@ -2213,11 +2252,13 @@ async function analyzeVehicle(){
 function parseAIJson(raw) {
   if(!raw) return null;
 
-  // Step 1: strip markdown fences
+  // Step 1: aggressively strip any wrapping prose / fences
   let s = raw
-    .replace(/^```(?:json)?\s*/im, '')
-    .replace(/\s*```\s*$/m, '')
+    .replace(/^[\s\S]*?```(?:json)?\s*/im, '')  // remove everything up to opening fence
+    .replace(/```[\s\S]*$/m, '')                  // remove closing fence and after
     .trim();
+  // If no fences, just take the raw
+  if(!s || s.indexOf('{') === -1) s = raw.trim();
 
   // Step 2: extract outermost { ... } block
   const first = s.indexOf('{');
@@ -2225,33 +2266,40 @@ function parseAIJson(raw) {
   if(first === -1 || last <= first) return null;
   s = s.slice(first, last + 1);
 
-  // Step 3: try direct parse first
+  // Step 3: direct parse (works if AI is well-behaved)
   try { return JSON.parse(s); } catch(e) {}
 
-  // Step 4: apply structural fixes
+  // Step 4: structural pre-fixes
   let fixed = s
-    .replace(/\/\/[^\n"]*/g, '')            // remove JS line comments (outside strings)
-    .replace(/,\s*([\]}])/g, '$1')            // trailing commas before ] or }
-    .replace(/[\u201C\u201D]/g, '"')          // curly double quotes → straight
-    .replace(/[\u2018\u2019\u0060]/g, "'")   // curly single quotes / backticks → straight
-    .replace(/:\s*NaN\b/g, ': null')           // NaN → null
-    .replace(/:\s*undefined\b/g, ': null');    // undefined → null
+    .replace(/[\u201C\u201D\u201E\u201F]/g, '"')        // curly double quotes
+    .replace(/[\u2018\u2019\u201B\u0060]/g, "'")        // curly single quotes / backticks
+    .replace(/[\u2013\u2014]/g, '-')                      // em/en dashes
+    .replace(/:\s*NaN\b/g, ': 0')                         // NaN → 0
+    .replace(/:\s*undefined\b/g, ': null')                 // undefined → null
+    .replace(/:\s*Infinity\b/g, ': 0')                    // Infinity → 0
+    .replace(/,\s*([\]}])/g, '$1')                        // trailing commas
+    .replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g,  // unquoted keys → quoted
+              '$1"$2":');
   try { return JSON.parse(fixed); } catch(e) {}
 
-  // Step 5: walk string char-by-char and escape unescaped quotes inside string values
+  // Step 5: state-machine string sanitizer
   fixed = sanitizeJsonStrings(fixed);
   try { return JSON.parse(fixed); } catch(e) {}
 
-  // Step 6: last resort — try progressively shorter substrings from the end
+  // Step 6: last resort — trim from last valid closing brace backward
   for(let i = fixed.length - 1; i > 0; i--) {
     if(fixed[i] === '}') {
-      try { return JSON.parse(fixed.slice(0, i + 1)); } catch(e) {}
+      try {
+        const candidate = fixed.slice(0, i + 1);
+        return JSON.parse(candidate);
+      } catch(e) {}
     }
   }
   return null;
 }
 
-// Proper JSON string sanitizer — state machine
+// State-machine JSON string sanitizer — handles unescaped quotes, 
+// bare newlines, control chars inside AI-generated string values
 function sanitizeJsonStrings(str) {
   let out = '';
   let inStr = false;
@@ -2265,24 +2313,24 @@ function sanitizeJsonStrings(str) {
       out += ch;
       continue;
     }
-    // Inside a string
+    // ── We are inside a JSON string value ──
     if(ch === '"') {
-      // Peek ahead past whitespace to see if structural char follows
+      // Peek past whitespace — if structural char follows, this is a legitimate close quote
       let j = i + 1;
       while(j < str.length && (str[j] === ' ' || str[j] === '\t')) j++;
       const nxt = j < str.length ? str[j] : '';
       if(nxt === ':' || nxt === ',' || nxt === '}' || nxt === ']' || nxt === '') {
         inStr = false; out += ch;
       } else {
-        out += '\\"'; // escape the rogue quote
+        out += '\\"'; // escape the rogue interior quote
       }
       continue;
     }
     const code = ch.charCodeAt(0);
-    if(code === 10) { out += '\\n'; continue; }
-    if(code === 13) { out += '\\r'; continue; }
-    if(code === 9)  { out += '\\t'; continue; }
-    if(code < 32)   { continue; } // drop other control chars
+    if(code === 10) { out += '\\n'; continue; }   // bare LF → escaped
+    if(code === 13) { continue; }                    // bare CR → drop
+    if(code === 9)  { out += ' '; continue; }        // tab → space
+    if(code < 32)   { continue; }                    // other control chars → drop
     out += ch;
   }
   return out;
