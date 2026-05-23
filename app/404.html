@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0a0a0a">
+  <title>APEX</title>
+  <style>
+    body { background: #0a0a0a; color: #e8e8ee; font-family: sans-serif;
+           display: flex; align-items: center; justify-content: center;
+           min-height: 100vh; margin: 0; text-align: center; }
+    .logo { font-size: 48px; margin-bottom: 16px; }
+    .title { font-size: 28px; letter-spacing: 3px; color: #e84040; }
+    .sub { font-size: 12px; color: #6a6a7a; margin-top: 8px; }
+  </style>
+  <script>
+    // GitHub Pages SPA redirect trick
+    // Encode the full path/query/hash into a query string param
+    // so index.html can decode it and resume the app
+    (function() {
+      var l = window.location;
+      // Don't redirect if we're already at index.html
+      if (l.pathname.endsWith('index.html')) return;
+      
+      var pathSegmentsToKeep = 0; // 0 = root, 1 = if hosted at /repo-name/
+      
+      // Detect if hosted in a subdirectory (GitHub project page)
+      // e.g. https://user.github.io/apex/ → keep 1 segment
+      var segments = l.pathname.split('/').filter(Boolean);
+      // If URL is user.github.io/something → it's a project page, keep 1 segment
+      var isProjectPage = l.hostname.endsWith('github.io') && segments.length > 0;
+      if (isProjectPage) pathSegmentsToKeep = 1;
+      
+      var redirect = l.protocol + '//' + l.hostname + 
+        (l.port ? ':' + l.port : '') +
+        l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/' +
+        '?p=/' + l.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/').replace(/&/g, '~and~') +
+        (l.search ? '&q=' + l.search.slice(1).replace(/&/g, '~and~') : '') +
+        l.hash;
+      
+      window.location.replace(redirect);
+    }());
+  </script>
+</head>
+<body>
+  <div>
+    <div class="logo">🏎️</div>
+    <div class="title">APEX</div>
+    <div class="sub">Loading...</div>
+  </div>
+</body>
+</html>

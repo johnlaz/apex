@@ -1,0 +1,45 @@
+{
+  "name": "APEX",
+  "short_name": "APEX",
+  "description": "Scan, analyze, and track any vehicle with AI-powered APEX.",
+  "start_url": "/apex/app/",
+  "scope": "/apex/app/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0a0a0a",
+  "theme_color": "#e8231a",
+  "categories": [
+    "automotive",
+    "utilities"
+  ],
+  "icons": [
+    {
+      "src": "/apex/app/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apex/app/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apex/app/icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "/apex/app/icon-32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/apex/app/icon-16.png",
+      "sizes": "16x16",
+      "type": "image/png"
+    }
+  ],
+  "lang": "en-US"
+}
