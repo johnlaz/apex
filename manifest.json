@@ -1,48 +1,46 @@
 {
-  "name": "APEX v2.5 \u2014 Scan | Analyze | Track",
+  "name": "APEX \u2014 Scan. Analyze. Track.",
   "short_name": "APEX",
-  "description": "Professional vehicle valuation, dealer forms, and inventory management",
-  "start_url": "./",
-  "scope": "./",
+  "description": "AI-powered automotive identification, damage analysis, and market tracking.",
+  "start_url": "/apex/",
+  "scope": "/apex/",
   "display": "standalone",
-  "orientation": "any",
+  "orientation": "portrait-primary",
   "background_color": "#0a0a0a",
-  "theme_color": "#0a0a0a",
+  "theme_color": "#e8231a",
+  "categories": [
+    "automotive",
+    "utilities"
+  ],
   "icons": [
     {
-      "src": "icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "icon-192.png",
+      "src": "/apex/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "icon-256.png",
-      "sizes": "256x256",
+      "src": "/apex/icon-512.png",
+      "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     },
     {
-      "src": "icon-64.png",
-      "sizes": "64x64",
+      "src": "/apex/icon-180.png",
+      "sizes": "180x180",
       "type": "image/png"
     },
     {
-      "src": "icon-32.png",
+      "src": "/apex/icon-32.png",
       "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/apex/icon-16.png",
+      "sizes": "16x16",
       "type": "image/png"
     }
   ],
-  "categories": [
-    "utilities",
-    "business",
-    "finance"
-  ],
-  "lang": "en-US",
-  "version": "2.5"
+  "screenshots": [],
+  "lang": "en-US"
 }
