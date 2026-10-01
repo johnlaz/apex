@@ -1,5 +1,5 @@
 // APEX — Service Worker
-const CACHE_NAME = 'apex-v6';
+const CACHE_NAME = 'apex-v7';
 const CACHE_URLS = [
   './',
   './index.html',
@@ -41,8 +41,10 @@ self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
   // Never intercept API calls
+  // (api.nhtsa.gov = live recall data: caching it would serve stale recalls forever)
   if (url.hostname === 'api.groq.com' ||
       url.hostname === 'vpic.nhtsa.dot.gov' ||
+      url.hostname === 'api.nhtsa.gov' ||
       url.hostname === 'logo.clearbit.com') {
     return;
   }
@@ -51,6 +53,21 @@ self.addEventListener('fetch', event => {
   if (url.hostname === 'fonts.googleapis.com') {
     event.respondWith(
       fetch(event.request).catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Network-first for the app shell so a new deploy is never stuck behind an
+  // old cached index.html (offline still works via the cached copy)
+  if (event.request.mode === 'navigate' || url.pathname.endsWith('/index.html')) {
+    event.respondWith(
+      fetch(event.request).then(response => {
+        if (response && response.status === 200) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+        }
+        return response;
+      }).catch(() => caches.match(event.request).then(r => r || caches.match('./index.html')))
     );
     return;
   }
