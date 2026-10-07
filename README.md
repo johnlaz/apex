@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/banner.svg" alt="APEX: a number, and the receipts." width="100%">
+
 # APEX
 
 ### A number, and the receipts.
@@ -7,7 +9,7 @@
 **AI vehicle analyzer for people who buy, sell, and flip cars.**
 Scan a VIN. Get a valuation grounded in listings it actually found, today, with the links to prove it.
 
-[**Launch APEX →**](https://johnlaz.github.io/apex/app/) · Installable PWA · No account · No backend · Your key never leaves your device
+[**Launch APEX →**](https://johnlaz.github.io/apex/app/) · [Landing page](https://johnlaz.github.io/apex/) · Installable PWA · No account · No backend · Your key never leaves your device
 
 </div>
 
@@ -18,6 +20,8 @@ Scan a VIN. Get a valuation grounded in listings it actually found, today, with 
 Most "AI car value" tools hand you a confident number from a model that has never seen a listing. APEX is built the other way around: **evidence first, AI second.**
 
 Every report carries a banner that tells you exactly how much to trust it:
+
+<img src="docs/trust-levels.svg" alt="The four report banners: LIVE-SOURCED, PARTIAL, ESTIMATE ONLY, LEGACY SNAPSHOT" width="100%">
 
 | Banner | Meaning |
 |---|---|
@@ -41,7 +45,8 @@ Reports 3+ days old get an age warning. Dates come from your device clock, not f
 - **Dealer Forms.** Curated form reference by state.
 - **5 themes.**
 - **Offline PWA.** Installs to your home screen; the shell works offline.
-- **Auto-updating Groq models.** Paste your key and APEX pulls the newest chat models available to you, with a picker in Settings. If Groq retires your model, APEX re-pulls the list and retries automatically.
+- **Auto-updating Groq models.** Paste your key and APEX pulls the newest chat models available to you, with a picker in Settings. Your saved choice is never swapped silently: if it drops off Groq's list it is kept and flagged. Only if Groq explicitly rejects a model as retired does APEX switch, and it tells you.
+- **Resilient re-analysis.** If the AI returns an unreadable answer, APEX retries automatically, and the last attempt leaves out the trim (the report says so). **Edit & Re-run** brings you back to the form with every field filled in.
 - **Local-only key.** Stored in your browser's localStorage and sent only to Groq.
 
 ## How it works
@@ -90,12 +95,48 @@ When APEX can't measure something, it says **"No data"** instead of guessing.
 - **Privacy.** No accounts, no analytics, no server. Data lives in your browser. Backups you export include your API key, so keep them private.
 - **Not financial advice.** APEX is a research aid. Inspect the car, verify the title, check the listings yourself.
 
+## AI and model setup
+
+- **Provider:** Groq only, bring your own key (free at [console.groq.com](https://console.groq.com)).
+- **Text/analysis model:** whichever you pick in Settings. The list is fetched from Groq when you save your key and whenever you tap Refresh (and silently after 3 days).
+- **Live research:** needs a GPT-OSS model, the only family with built-in `browser_search`. APEX uses the best GPT-OSS your key offers, even if you chose another model for analysis.
+- **Photo ID:** uses a fixed vision model that isn't user-selectable.
+
+## Repo layout
+
+```
+/index.html          landing page (plain page, not installable)
+/README.md
+/docs/               README visuals (SVG)
+/app/index.html      the app: single file, no build step
+/app/manifest.json   PWA manifest (scope /apex/app/)
+/app/sw.js           service worker (cache name = apex-v + version)
+/app/icon-192.png    icons (192 + 512 only)
+/app/icon-512.png
+/app/shot-*.png      install screenshots (add your own captures)
+```
+
+## Deploy and update
+
+Hosted on GitHub Pages at `johnlaz.github.io/apex`. To release a change: edit `app/index.html`, then bump the version in **both** `APP_VERSION` (in `app/index.html`) and `CACHE_VERSION` (in `app/sw.js`) so installed copies pick up the new cache. Open apps show a "new version ready, Reload" toast.
+
 ## Tech
 
 Single-file HTML PWA. Vanilla JS, no framework, no build step, no backend. Service worker for offline use. Groq API (bring your own key) and the NHTSA public API.
 
-## What's new in v2.6
+## Changelog
 
+### v2.7.0
+- Re-analysis reliability: free-text fields (trim, notes) are sanitized before they reach the prompt, Groq's strict-JSON rejection now falls back to plain parsing, and up to three attempts run automatically (the last without trim). Clear error messages with Try again / Try without trim.
+- **Edit & Re-run** button on every report.
+- Flatter repo, 192/512 icons only, manifest and service worker fixed; app file cut from ~960 KB to ~225 KB.
+- One version constant drives the UI stamp and the cache name; update toast added.
+- Backups no longer include your Groq key unless you opt in.
+- Saved model is flagged, not swapped, when it leaves Groq's list.
+- Mobile polish: compact header, form above the fold, safe-area support, bigger tap targets, 16px inputs (no iOS zoom), accessibility labels, reduced-motion support.
+- New honest landing page.
+
+### v2.6
 - Retired Groq models replaced; model list now auto-refreshes with a user picker.
 - Evidence-first valuation: verified comps, provenance banner, Evidence tab.
 - Removed the fabricated KBB/Edmunds/MMR/NADA source table and invented market stats.
