@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 250" role="img" aria-labelledby="t d">
+  <title id="t">The four APEX report banners</title>
+  <desc id="d">LIVE-SOURCED, PARTIAL, ESTIMATE ONLY and LEGACY SNAPSHOT, each with what it means.</desc>
+  <rect width="1200" height="250" rx="16" fill="#0a0a0a"/>
+  <rect x="1" y="1" width="1198" height="248" rx="15" fill="none" stroke="#2a2a2a" stroke-width="2"/>
+  <g font-family="ui-monospace,Menlo,Consolas,monospace">
+    <g transform="translate(24 24)"><rect width="276" height="202" rx="10" fill="#111" stroke="#2a2a2a"/><rect width="6" height="202" rx="3" fill="#46d27a"/>
+      <text x="24" y="40" font-size="15" letter-spacing="2" fill="#46d27a">LIVE-SOURCED</text>
+      <g font-family="'Segoe UI',Arial,sans-serif" font-size="15" fill="#c4c4ce"><text x="24" y="76">2+ comparable listings</text><text x="24" y="98">found, each price verified</text><text x="24" y="120">against the retrieved page.</text></g>
+      <text x="24" y="170" font-size="12" fill="#8b8b98">Trust: highest</text></g>
+    <g transform="translate(318 24)"><rect width="276" height="202" rx="10" fill="#111" stroke="#2a2a2a"/><rect width="6" height="202" rx="3" fill="#e0a73a"/>
+      <text x="24" y="40" font-size="15" letter-spacing="2" fill="#e0a73a">PARTIAL</text>
+      <g font-family="'Segoe UI',Arial,sans-serif" font-size="15" fill="#c4c4ce"><text x="24" y="76">Research ran, but fewer</text><text x="24" y="98">than 2 comps survived</text><text x="24" y="120">verification. Softer range.</text></g>
+      <text x="24" y="170" font-size="12" fill="#8b8b98">Trust: medium</text></g>
+    <g transform="translate(612 24)"><rect width="276" height="202" rx="10" fill="#111" stroke="#2a2a2a"/><rect width="6" height="202" rx="3" fill="#ff6a60"/>
+      <text x="24" y="40" font-size="15" letter-spacing="2" fill="#ff6a60">ESTIMATE ONLY</text>
+      <g font-family="'Segoe UI',Arial,sans-serif" font-size="15" fill="#c4c4ce"><text x="24" y="76">Live research failed. The</text><text x="24" y="98">number is the AI's general</text><text x="24" y="120">knowledge, labeled as such.</text></g>
+      <text x="24" y="170" font-size="12" fill="#8b8b98">Trust: ballpark</text></g>
+    <g transform="translate(906 24)"><rect width="270" height="202" rx="10" fill="#111" stroke="#2a2a2a"/><rect width="6" height="202" rx="3" fill="#8b8b98"/>
+      <text x="24" y="40" font-size="15" letter-spacing="2" fill="#a8a8b4">LEGACY SNAPSHOT</text>
+      <g font-family="'Segoe UI',Arial,sans-serif" font-size="15" fill="#c4c4ce"><text x="24" y="76">Saved by an older version.</text><text x="24" y="98">Shown with its age, never</text><text x="24" y="120">presented as current.</text></g>
+      <text x="24" y="170" font-size="12" fill="#8b8b98">Trust: historical</text></g>
+  </g>
+</svg>
